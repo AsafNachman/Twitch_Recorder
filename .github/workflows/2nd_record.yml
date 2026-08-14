@@ -1,0 +1,45 @@
+name: Scheduled Stream Recorder2
+
+on:
+  schedule:
+    - cron: '*/30 * * * *' # Checks every 30 minutes, 24/7
+  workflow_dispatch:
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y streamlink rclone
+
+      - name: Configure Rclone
+        env:
+          RCLONE_CONF_CONTENTS: ${{ secrets.RCLONE_CONF }}
+        run: |
+          mkdir -p ~/.config/rclone
+          echo "$RCLONE_CONF_CONTENTS" > ~/.config/rclone/rclone.conf
+
+      - name: Record Stream
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_URL: ${{ secrets.STREAMER_URL2 }}
+        run: |
+          RUN_COUNT=$(gh run list --workflow "Scheduled Stream Recorder2" --status in_progress --json databaseId --jq 'length')
+          
+          if [ "$RUN_COUNT" -gt 1 ]; then
+            echo "An earlier instance is already recording. Exiting to prevent collision."
+            exit 0
+          fi
+
+          mkdir -p video_out
+          streamlink "$TARGET_URL" best -o "video_out/stream_{time:%Y-%m-%d_%H-%M-%S}.mp4" || true
+
+      - name: Upload to Cloud
+        run: |
+          if [ "$(ls -A video_out 2>/dev/null)" ]; then
+            rclone move video_out/ gdrive:TwitchRecordings/
+          else
+            echo "Streamer offline or duplicate run cancelled. No file to upload."
+          fi
