@@ -26,7 +26,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TARGET_URL: ${{ secrets.STREAMER_URL3 }}
         run: |
-          RUN_COUNT=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "Scheduled Stream Recorder2" --status in_progress --json databaseId --jq 'length')
+          RUN_COUNT=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "Scheduled Stream Recorder3" --status in_progress --json databaseId --jq 'length')
           
           if [ "$RUN_COUNT" -gt 1 ]; then
             echo "An earlier instance is already recording. Exiting to prevent collision."
