@@ -36,7 +36,7 @@ jobs:
           fi
 
           mkdir -p video_out
-          timeout 1m streamlink "$TARGET_URL" best -o "video_out/stream_{time:%Y-%m-%d_%H-%M-%S}.mp4" || true
+          streamlink "$TARGET_URL" best -o "video_out/stream_{time:%Y-%m-%d_%H-%M-%S}.mp4" || true
 
       - name: Upload to Cloud
         run: |
