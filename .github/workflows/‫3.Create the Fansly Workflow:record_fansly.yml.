@@ -1,0 +1,74 @@
+name: Record Fansly Stream
+
+on:
+  schedule:
+    - cron: '*/30 * * * *' 
+  workflow_dispatch:
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rclone ffmpeg git python3 python3-venv
+
+      - name: Configure Rclone
+        env:
+          RCLONE_CONF_CONTENTS: ${{ secrets.RCLONE_CONF }}
+        run: |
+          mkdir -p ~/.config/rclone
+          echo "$RCLONE_CONF_CONTENTS" > ~/.config/rclone/rclone.conf
+
+      - name: Setup Fansly Recorder
+        run: |
+          # Clone the specialized community recorder tool
+          git clone https://github.com/agnosto/fansly-recorder.git
+          cd fansly-recorder
+          
+          # Initialize Python environment
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Record Stream
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FANSLY_TOKEN: ${{ secrets.FANSLY_TOKEN }}
+          TARGET_USER: ${{ secrets.FANSLY_USERNAME }} 
+        run: |
+          # Collision detection
+          RUN_COUNT=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "Record Fansly Stream" --status in_progress --json databaseId --jq 'length')
+          
+          if [ "$RUN_COUNT" -gt 1 ]; then
+            echo "An earlier instance is already recording. Exiting."
+            exit 0
+          fi
+
+          cd fansly-recorder
+          
+          # Generate the required config.py file injected with your account token
+          cat << EOF > config.py
+          account_token = "$FANSLY_TOKEN"
+          headers = {
+              'Authorization': account_token,
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+          }
+          EOF
+
+          # Start recording. The script naturally polls the channel every 2 minutes.
+          # The 55m timeout ensures the server resets safely before the 1-hour mark.
+          source .venv/bin/activate
+          timeout 55m python3 fansly-recorder.py "$TARGET_USER" || true
+
+      - name: Upload to Cloud
+        run: |
+          cd fansly-recorder
+          
+          # Move any generated MP4 files to the designated Drive folder
+          if ls *.mp4 1> /dev/null 2>&1; then
+            rclone move ./ gdrive:FanslyRecordings/ --include "*.mp4"
+          else
+            echo "Streamer offline or no file recorded."
+          fi
