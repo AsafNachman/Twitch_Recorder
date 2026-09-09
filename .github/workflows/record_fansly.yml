@@ -21,7 +21,6 @@ jobs:
           mkdir -p ~/.config/rclone
           echo "$RCLONE_CONF_CONTENTS" > ~/.config/rclone/rclone.conf
 
-      # NEW STEP: Force Python 3.10 to ensure compatibility with older aiohttp
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
@@ -34,7 +33,6 @@ jobs:
           
           python3 -m venv .venv
           source .venv/bin/activate
-          # Pip will now use Python 3.10, preventing the C-extension build error
           pip install -r requirements.txt
 
       - name: Record Stream
@@ -52,13 +50,10 @@ jobs:
 
           cd fansly-recorder
           
-          cat << EOF > config.py
-          account_token = "$FANSLY_TOKEN"
-          headers = {
-              'Authorization': account_token,
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-          }
-          EOF
+          # Safely appends your specific token to the bottom of the config 
+          # without deleting the required webhooks settings.
+          echo "account_token = '$FANSLY_TOKEN'" >> config.py
+          echo "headers = {'Authorization': account_token, 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}" >> config.py
 
           source .venv/bin/activate
           timeout 55m python3 fansly-recorder.py "$TARGET_USER" || true
