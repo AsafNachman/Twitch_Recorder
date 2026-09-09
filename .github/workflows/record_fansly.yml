@@ -12,7 +12,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y rclone ffmpeg git python3 python3-venv
+          sudo apt-get install -y rclone ffmpeg git
 
       - name: Configure Rclone
         env:
@@ -21,15 +21,20 @@ jobs:
           mkdir -p ~/.config/rclone
           echo "$RCLONE_CONF_CONTENTS" > ~/.config/rclone/rclone.conf
 
+      # NEW STEP: Force Python 3.10 to ensure compatibility with older aiohttp
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
       - name: Setup Fansly Recorder
         run: |
-          # Clone the specialized community recorder tool
           git clone https://github.com/agnosto/fansly-recorder.git
           cd fansly-recorder
           
-          # Initialize Python environment
           python3 -m venv .venv
           source .venv/bin/activate
+          # Pip will now use Python 3.10, preventing the C-extension build error
           pip install -r requirements.txt
 
       - name: Record Stream
@@ -38,7 +43,6 @@ jobs:
           FANSLY_TOKEN: ${{ secrets.FANSLY_TOKEN }}
           TARGET_USER: ${{ secrets.FANSLY_USERNAME }} 
         run: |
-          # Collision detection
           RUN_COUNT=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "Record Fansly Stream" --status in_progress --json databaseId --jq 'length')
           
           if [ "$RUN_COUNT" -gt 1 ]; then
@@ -48,7 +52,6 @@ jobs:
 
           cd fansly-recorder
           
-          # Generate the required config.py file injected with your account token
           cat << EOF > config.py
           account_token = "$FANSLY_TOKEN"
           headers = {
@@ -57,8 +60,6 @@ jobs:
           }
           EOF
 
-          # Start recording. The script naturally polls the channel every 2 minutes.
-          # The 55m timeout ensures the server resets safely before the 1-hour mark.
           source .venv/bin/activate
           timeout 55m python3 fansly-recorder.py "$TARGET_USER" || true
 
@@ -66,7 +67,6 @@ jobs:
         run: |
           cd fansly-recorder
           
-          # Move any generated MP4 files to the designated Drive folder
           if ls *.mp4 1> /dev/null 2>&1; then
             rclone move ./ gdrive:FanslyRecordings/ --include "*.mp4"
           else
