@@ -63,7 +63,7 @@ jobs:
           cd fansly-recorder
           
           if ls *.mp4 1> /dev/null 2>&1; then
-            rclone move ./ gdrive:FanslyRecordings/ --include "*.mp4"
+            rclone move ./ gdrive:TwitchRecordings/FanslyRecordings/ --include "*.mp4"
           else
             echo "Streamer offline or no file recorded."
           fi
