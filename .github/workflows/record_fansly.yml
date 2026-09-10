@@ -62,8 +62,11 @@ jobs:
         run: |
           cd fansly-recorder
           
-          if ls *.mp4 1> /dev/null 2>&1; then
-            rclone move ./ gdrive:TwitchRecordings/FanslyRecordings/ --include "*.mp4"
+          # This correctly searches all subfolders for the video
+          if [ -n "$(find . -type f -name '*.mp4' -print -quit)" ] || [ -n "$(find . -type f -name '*.ts' -print -quit)" ]; then
+            echo "Video file found! Moving to Google Drive..."
+            # This uses your exact new nested path, plus the ** wildcards to pull from subfolders
+            rclone move ./ gdrive:TwitchRecordings/FanslyRecordings/ --include "**/*.mp4" --include "**/*.ts" --include "**/*.avi"
           else
             echo "Streamer offline or no file recorded."
           fi
