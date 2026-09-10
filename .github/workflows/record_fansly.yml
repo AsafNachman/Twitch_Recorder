@@ -56,7 +56,7 @@ jobs:
           echo "headers = {'Authorization': account_token, 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}" >> config.py
 
           source .venv/bin/activate
-          timeout 55m python3 fansly-recorder.py "$TARGET_USER" || true
+          timeout 240m python3 fansly-recorder.py "$TARGET_USER" || true
 
       - name: Upload to Cloud
         run: |
